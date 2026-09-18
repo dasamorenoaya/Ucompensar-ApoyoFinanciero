@@ -321,7 +321,7 @@ function App() {
   const importBackup = async (file: File) => {
     try {
       const data = JSON.parse(await file.text());
-      await api.post('/api/import', { ...data, password });
+      await api.post('/api/import', { ...data, password: adminPassword });
       await load();
       notify('Respaldo importado');
     } catch {
