@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
 export const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-type ApiResult<T> = { data: T };
 async function fail(error) { throw new Error(error?.message || 'Error de Supabase'); }
 async function ok(data) { return { data }; }
 const now = () => Date.now();
