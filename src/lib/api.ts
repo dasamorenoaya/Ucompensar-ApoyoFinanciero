@@ -19,7 +19,7 @@ async function getData() {
   const raw=settings.data?.data||{};
   const settingsOut={
     institution_name:raw.institution_name||'Fundación Universitaria Compensar',
-    logo_url:raw.logo_data?dataUrl(raw.logo_content_type||'image/png',raw.logo_data):(raw.logo_url||'/resources/logo-ucompensar.png'),
+    logo_url:raw.logo_data?dataUrl(raw.logo_content_type||'image/png',raw.logo_data):((raw.logo_url&&/^https?:\\/\\//.test(raw.logo_url))?raw.logo_url:''),
     logo_path:raw.logo_path||'', background_image_url:raw.background_data?dataUrl(raw.background_content_type||'image/jpeg',raw.background_data):(raw.background_image_url||'/resources/fondo-ucompensar.png'),
     background_path:raw.background_path||'', background_type:raw.background_type||'image',
     background_video_url:raw.background_video_data?dataUrl(raw.background_video_content_type||'video/mp4',raw.background_video_data):(raw.background_video_url||''),
