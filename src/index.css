@@ -1667,3 +1667,18 @@ body {
 @media (max-width: 900px) {
   .certificate-word-web-editor .docx { transform-origin: top center; }
 }
+
+
+/* Editor DOCX real: SuperDoc */
+.superdoc-certificate-shell{min-height:calc(100vh - 120px);padding:16px 20px 28px;box-sizing:border-box;background:#f4f5f7}
+.superdoc-certificate-head{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:#fff;border:1px solid #e3e5e8;border-radius:14px;padding:12px 16px;margin-bottom:12px;box-shadow:0 4px 14px rgba(31,35,41,.06)}
+.superdoc-certificate-head h2{margin:0;color:#302657;font-size:20px}.superdoc-certificate-head p{margin:3px 0 0;color:#7b8088;font-size:12px}.superdoc-certificate-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.superdoc-certificate-body{display:flex;justify-content:center}.superdoc-editor-column{width:min(1180px,100%);background:#e1e4e8;border:1px solid #d8dce1;border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(31,35,41,.08)}
+.superdoc-toolbar{min-height:48px;background:#fff;border-bottom:1px solid #dfe2e6;padding:5px 8px;box-sizing:border-box;position:relative;z-index:5}
+.superdoc-toolbar button,.superdoc-toolbar select{font-family:Arial,sans-serif}
+.superdoc-stage{position:relative;min-height:760px;max-height:calc(100vh - 235px);overflow:auto;background:#dfe3e7;padding:24px 18px 36px}
+.superdoc-document-host{min-height:700px;width:100%}
+.superdoc-document-host .superdoc{margin:0 auto!important}
+.superdoc-loading,.superdoc-error{position:absolute;inset:24px 18px auto;z-index:4;display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;border-radius:10px;background:#fff;border:1px solid #e0e3e7;box-shadow:0 5px 16px rgba(0,0,0,.08)}
+.superdoc-error{color:#9c2d2d;flex-direction:column}.superdoc-error span{font-size:12px;color:#6e5555}.spin{animation:spin-cert 1s linear infinite}@keyframes spin-cert{to{transform:rotate(360deg)}}
+@media print{body *{visibility:hidden!important}.superdoc-stage,.superdoc-stage *{visibility:visible!important}.superdoc-stage{position:absolute!important;left:0!important;top:0!important;width:100%!important;max-height:none!important;overflow:visible!important;background:#fff!important;padding:0!important}.superdoc-toolbar,.superdoc-certificate-head{display:none!important}.superdoc-document-host{width:100%!important}}
