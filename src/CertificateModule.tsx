@@ -18,7 +18,7 @@ function formatDate(value: unknown) { const numeric = typeof value === 'number' 
 function normalizeTemplate(template: CertificateTemplate): CertificateTemplate { return { id: String(template?.id || ''), name: String(template?.name || 'Certificado financiero'), description: String(template?.description || ''), filename: String(template?.filename || 'plantilla.docx'), path: String(template?.path || ''), content_type: String(template?.content_type || DOCX), size: typeof template?.size === 'number' ? template.size : Number(template?.size) || 0, created_at: typeof template?.created_at === 'number' ? template.created_at : Number(template?.created_at) || 0, updated_at: typeof template?.updated_at === 'number' ? template.updated_at : Number(template?.updated_at) || undefined }; }
 
 function lockFixedCertificateAreas(root: HTMLElement) {
-  const fixedNodes = Array.from(root.querySelectorAll<HTMLElement>('header, footer, [class*="header"], [class*="footer"]'));
+  const fixedNodes = Array.from(root.querySelectorAll<HTMLElement>('header, footer'));
   fixedNodes.forEach(node => {
     node.contentEditable = 'false';
     node.setAttribute('data-certificate-fixed', 'true');
@@ -130,10 +130,25 @@ async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) 
     pages.forEach(page => {
       page.style.setProperty('background', '#FFFFFF', 'important');
       page.style.setProperty('background-color', '#FFFFFF', 'important');
+      page.style.setProperty('background-image', 'none', 'important');
       page.style.setProperty('opacity', '1', 'important');
       page.style.setProperty('filter', 'none', 'important');
       page.style.setProperty('mix-blend-mode', 'normal', 'important');
-
+      // Algunos DOCX traen un sombreado aplicado a un contenedor que ocupa
+      // prácticamente toda la hoja. No lo queremos: el papel debe ser blanco.
+      const pageArea = Math.max(1, page.getBoundingClientRect().width * page.getBoundingClientRect().height);
+      page.querySelectorAll<HTMLElement>('*').forEach(node => {
+        const box = node.getBoundingClientRect();
+        const area = box.width * box.height;
+        const bg = getComputedStyle(node).backgroundColor;
+        const image = getComputedStyle(node).backgroundImage;
+        const hasSolidBackground = bg && bg !== 'transparent' && !bg.includes('rgba(0, 0, 0, 0)');
+        if (area > pageArea * 0.45 && (hasSolidBackground || image !== 'none')) {
+          node.style.setProperty('background', 'transparent', 'important');
+          node.style.setProperty('background-color', 'transparent', 'important');
+          node.style.setProperty('background-image', 'none', 'important');
+        }
+      });
     });
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     rendered = pages.length > 0 && pages.some(page => {
