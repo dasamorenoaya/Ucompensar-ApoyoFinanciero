@@ -128,27 +128,14 @@ async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) 
     // La hoja del certificado es papel blanco real. Forzamos el fondo en línea
     // porque docx-preview puede insertar después sus propios estilos de página.
     pages.forEach(page => {
+      // El DOCX es la fuente visual. No se deben borrar fondos, imágenes,
+      // bordes ni elementos internos: algunos membretes dependen de ellos.
       page.style.setProperty('background', '#FFFFFF', 'important');
       page.style.setProperty('background-color', '#FFFFFF', 'important');
-      page.style.setProperty('background-image', 'none', 'important');
       page.style.setProperty('opacity', '1', 'important');
       page.style.setProperty('filter', 'none', 'important');
       page.style.setProperty('mix-blend-mode', 'normal', 'important');
-      // Algunos DOCX traen un sombreado aplicado a un contenedor que ocupa
-      // prácticamente toda la hoja. No lo queremos: el papel debe ser blanco.
-      const pageArea = Math.max(1, page.getBoundingClientRect().width * page.getBoundingClientRect().height);
-      page.querySelectorAll<HTMLElement>('*').forEach(node => {
-        const box = node.getBoundingClientRect();
-        const area = box.width * box.height;
-        const bg = getComputedStyle(node).backgroundColor;
-        const image = getComputedStyle(node).backgroundImage;
-        const hasSolidBackground = bg && bg !== 'transparent' && !bg.includes('rgba(0, 0, 0, 0)');
-        if (area > pageArea * 0.45 && (hasSolidBackground || image !== 'none')) {
-          node.style.setProperty('background', 'transparent', 'important');
-          node.style.setProperty('background-color', 'transparent', 'important');
-          node.style.setProperty('background-image', 'none', 'important');
-        }
-      });
+      page.style.setProperty('visibility', 'visible', 'important');
     });
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     rendered = pages.length > 0 && pages.some(page => {
@@ -175,7 +162,7 @@ async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) 
     },
   );
   if (!fallback.value.trim()) throw new Error('docx-render-empty');
-  host.innerHTML = fallback.value;
+  host.innerHTML = `<div class="docx-fallback-page">${fallback.value}</div>`;
 }
 
 function CertificateEditor({ template: rawTemplate, templates: rawTemplates, backups: rawBackups, adminPassword, onBack, onChanged }: { template: CertificateTemplate; templates: CertificateTemplate[]; backups: CertificateBackup[]; adminPassword: string; onBack: () => void; onChanged: () => Promise<void> }) {
