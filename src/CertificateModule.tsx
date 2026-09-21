@@ -105,36 +105,48 @@ function clearCertificateDocxStyles() {
 
 async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) {
   host.innerHTML = '';
+  host.style.display = 'block';
   clearCertificateDocxStyles();
   if (bytes.byteLength < 4) throw new Error('empty-template-file');
   const signature = new Uint8Array(bytes.slice(0, 4));
   const isZipPackage = signature[0] === 0x50 && signature[1] === 0x4b;
   if (!isZipPackage) throw new Error('invalid-docx-package');
+
   let rendered = false;
   try {
-    const styleSandbox = document.createElement('div');
-    await renderAsync(bytes, host, styleSandbox, DOCX_RENDER_OPTIONS);
-    styleSandbox.querySelectorAll('style').forEach(style => {
-      const copy = style.cloneNode(true) as HTMLStyleElement;
-      copy.setAttribute('data-crm-certificate-docx', 'true');
-      document.head.appendChild(copy);
+    // docx-preview necesita que el contenedor de estilos esté conectado al DOM.
+    // Antes se usaba un div desconectado y luego se copiaban los estilos; eso
+    // podía dejar las páginas renderizadas pero completamente invisibles.
+    const styleHost = document.createElement('div');
+    styleHost.setAttribute('data-crm-certificate-docx-style-host', 'true');
+    document.head.appendChild(styleHost);
+    await renderAsync(bytes, host, styleHost, DOCX_RENDER_OPTIONS);
+    styleHost.querySelectorAll('style').forEach(style => {
+      style.setAttribute('data-crm-certificate-docx', 'true');
     });
     const pages = Array.from(host.querySelectorAll<HTMLElement>('.docx'));
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     rendered = pages.length > 0 && pages.some(page => {
       const box = page.getBoundingClientRect();
-      return box.width > 20 && box.height > 20 && Boolean(page.textContent?.trim() || page.querySelector('img,table,svg'));
+      const text = page.textContent?.replace(/\\s+/g, ' ').trim() || '';
+      return box.width > 20 && box.height > 20 && Boolean(text || page.querySelector('img,table,svg'));
     });
+    if (rendered) return;
   } catch (error) {
     console.warn('docx-preview failed, using compatibility renderer', error);
   }
-  if (rendered) return;
+
   host.innerHTML = '';
   clearCertificateDocxStyles();
+  document.head.querySelector('[data-crm-certificate-docx-style-host]')?.remove();
+
   const fallback = await mammoth.convertToHtml(
     { arrayBuffer: bytes },
     {
       includeDefaultStyleMap: true,
-      convertImage: mammoth.images.inline(async image => ({ src: `data:${image.contentType};base64,${await image.read('base64')}` })),
+      convertImage: mammoth.images.inline(async image => ({
+        src: `data:${image.contentType};base64,${await image.read('base64')}`,
+      })),
     },
   );
   if (!fallback.value.trim()) throw new Error('docx-render-empty');
