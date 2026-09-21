@@ -273,8 +273,8 @@ function App() {
     if (!admin || !adminPassword) return null;
     const allowed = kind === 'logo' ? ['image/png', 'image/jpeg'] : ['image/png', 'image/jpeg', 'video/mp4', 'video/webm'];
     if (!allowed.includes(file.type)) { notify(kind === 'logo' ? 'Solo se permiten JPG o PNG' : 'El fondo debe ser JPG, PNG, MP4 o WebM'); return null; }
-    const maxSize = kind === 'logo' ? 700 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) { notify(kind === 'logo' ? 'La imagen debe pesar máximo 700 KB' : 'El video debe pesar máximo 10 MB'); return null; }
+    const maxSize = kind === 'logo' ? 700 * 1024 : 20 * 1024 * 1024;
+    if (file.size > maxSize) { notify(kind === 'logo' ? 'La imagen debe pesar máximo 700 KB' : 'El video debe pesar máximo 20 MB'); return null; }
     try {
       const safeName = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
       const path = `${kind}/${Date.now()}-${safeName}`;
