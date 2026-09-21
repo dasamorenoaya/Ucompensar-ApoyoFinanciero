@@ -100,7 +100,16 @@ const DOCX_RENDER_OPTIONS = {
 };
 
 function clearCertificateDocxStyles() {
-  document.head.querySelectorAll('style[data-crm-certificate-docx]').forEach(node => node.remove());
+  document.querySelectorAll('[data-crm-certificate-docx-style-host]').forEach(node => node.remove());
+}
+
+function createCertificateDocxStyleHost() {
+  const styleHost = document.createElement('div');
+  styleHost.setAttribute('data-crm-certificate-docx-style-host', 'true');
+  styleHost.setAttribute('aria-hidden', 'true');
+  styleHost.style.display = 'none';
+  document.body.appendChild(styleHost);
+  return styleHost;
 }
 
 async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) {
@@ -113,16 +122,15 @@ async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) 
   if (!isZipPackage) throw new Error('invalid-docx-package');
 
   let rendered = false;
+  const styleHost = createCertificateDocxStyleHost();
   try {
-    // docx-preview debe recibir el HEAD real como contenedor de estilos.
-    // Un DIV dentro de <head> puede ser reubicado por el navegador y dejar
-    // las reglas generadas fuera del contexto correcto, provocando una hoja
-    // completamente vacía aunque el DOCX sí se haya descargado.
-    await renderAsync(bytes, host, document.head, DOCX_RENDER_OPTIONS);
-    document.head.querySelectorAll('style').forEach(style => {
-      if (style.textContent?.includes('docx')) {
-        style.setAttribute('data-crm-certificate-docx', 'true');
-      }
+    // docx-preview borra el styleContainer antes de insertar sus estilos.
+    // Nunca debemos pasar document.head aquí, porque eso borraría los estilos
+    // globales de toda la aplicación. Un contenedor aislado mantiene intacto
+    // el CSS del CRM y permite que los estilos DOCX sigan aplicándose.
+    await renderAsync(bytes, host, styleHost, DOCX_RENDER_OPTIONS);
+    styleHost.querySelectorAll('style').forEach(style => {
+      style.setAttribute('data-crm-certificate-docx', 'true');
     });
     const pages = Array.from(host.querySelectorAll<HTMLElement>('.docx'));
     // La hoja del certificado es papel blanco real. Forzamos el fondo en línea
@@ -150,7 +158,6 @@ async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) 
 
   host.innerHTML = '';
   clearCertificateDocxStyles();
-  document.head.querySelector('[data-crm-certificate-docx-style-host]')?.remove();
 
   const fallback = await mammoth.convertToHtml(
     { arrayBuffer: bytes },
