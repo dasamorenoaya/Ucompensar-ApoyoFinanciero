@@ -1486,3 +1486,11 @@ body {
 .pdf-certificate-editor .preview-label { color:#117C82; }
 @media (max-width:1180px) and (min-width:901px) { .pdf-certificate-editor .certificate-workspace { grid-template-columns:190px minmax(0,1fr); } .pdf-certificate-editor .certificate-backups { grid-column:1 / -1; position:static; max-height:none; } }
 @media (max-width:760px) { .pdf-document-stage { justify-content:flex-start; overflow:auto; } .pdf-page-stack { min-width:612px; } .pdf-certificate-editor .certificate-fields label { margin-bottom:8px; } }
+
+
+/* Certificaciones financieras: zonas institucionales protegidas */
+.certificate-fixed-area{position:relative!important;outline:2px solid rgba(255,104,1,.28)!important;outline-offset:-2px!important;cursor:not-allowed!important;}
+.certificate-fixed-area::after{content:'🔒 ÁREA INSTITUCIONAL FIJA';position:absolute;top:6px;left:8px;padding:3px 7px;border-radius:5px;background:#fff4ea;color:#c84f00;font-size:10px;font-weight:800;letter-spacing:.03em;z-index:5;pointer-events:none;}
+.certificate-fixed-notice{display:flex;flex-direction:column;gap:3px;margin:10px 0 14px;padding:10px 12px;border:1px solid #ffd4b5;border-radius:10px;background:#fff8f3;color:#5f3b28;font-size:12px;line-height:1.35;}
+.certificate-fixed-notice b{color:#b84d08;font-size:12px;}
+.certificate-fixed-notice span{color:#6f625b;}
