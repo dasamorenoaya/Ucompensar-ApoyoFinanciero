@@ -125,6 +125,20 @@ async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) 
       style.setAttribute('data-crm-certificate-docx', 'true');
     });
     const pages = Array.from(host.querySelectorAll<HTMLElement>('.docx'));
+    // La hoja del certificado es papel blanco real. Forzamos el fondo en línea
+    // porque docx-preview puede insertar después sus propios estilos de página.
+    pages.forEach(page => {
+      page.style.setProperty('background', '#FFFFFF', 'important');
+      page.style.setProperty('background-color', '#FFFFFF', 'important');
+      page.style.setProperty('opacity', '1', 'important');
+      page.style.setProperty('filter', 'none', 'important');
+      page.style.setProperty('mix-blend-mode', 'normal', 'important');
+      const wrapper = page.parentElement;
+      if (wrapper instanceof HTMLElement) {
+        wrapper.style.setProperty('background', 'transparent', 'important');
+        wrapper.style.setProperty('background-color', 'transparent', 'important');
+      }
+    });
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     rendered = pages.length > 0 && pages.some(page => {
       const box = page.getBoundingClientRect();
