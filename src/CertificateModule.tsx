@@ -114,15 +114,15 @@ async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) 
 
   let rendered = false;
   try {
-    // docx-preview necesita que el contenedor de estilos esté conectado al DOM.
-    // Antes se usaba un div desconectado y luego se copiaban los estilos; eso
-    // podía dejar las páginas renderizadas pero completamente invisibles.
-    const styleHost = document.createElement('div');
-    styleHost.setAttribute('data-crm-certificate-docx-style-host', 'true');
-    document.head.appendChild(styleHost);
-    await renderAsync(bytes, host, styleHost, DOCX_RENDER_OPTIONS);
-    styleHost.querySelectorAll('style').forEach(style => {
-      style.setAttribute('data-crm-certificate-docx', 'true');
+    // docx-preview debe recibir el HEAD real como contenedor de estilos.
+    // Un DIV dentro de <head> puede ser reubicado por el navegador y dejar
+    // las reglas generadas fuera del contexto correcto, provocando una hoja
+    // completamente vacía aunque el DOCX sí se haya descargado.
+    await renderAsync(bytes, host, document.head, DOCX_RENDER_OPTIONS);
+    document.head.querySelectorAll('style').forEach(style => {
+      if (style.textContent?.includes('docx')) {
+        style.setAttribute('data-crm-certificate-docx', 'true');
+      }
     });
     const pages = Array.from(host.querySelectorAll<HTMLElement>('.docx'));
     // La hoja del certificado es papel blanco real. Forzamos el fondo en línea
@@ -133,11 +133,7 @@ async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) 
       page.style.setProperty('opacity', '1', 'important');
       page.style.setProperty('filter', 'none', 'important');
       page.style.setProperty('mix-blend-mode', 'normal', 'important');
-      const wrapper = page.parentElement;
-      if (wrapper instanceof HTMLElement) {
-        wrapper.style.setProperty('background', 'transparent', 'important');
-        wrapper.style.setProperty('background-color', 'transparent', 'important');
-      }
+
     });
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     rendered = pages.length > 0 && pages.some(page => {
