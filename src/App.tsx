@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { api } from './lib/api';
+import { api, supabase } from './lib/api';
 import CertificateModule, { CertificateSidebar } from './CertificateModule';
 import {
   Search,
@@ -274,10 +274,30 @@ function App() {
     const allowed = kind === 'logo' ? ['image/png', 'image/jpeg'] : ['image/png', 'image/jpeg', 'video/mp4', 'video/webm'];
     if (!allowed.includes(file.type)) { notify(kind === 'logo' ? 'Solo se permiten JPG o PNG' : 'El fondo debe ser JPG, PNG, MP4 o WebM'); return null; }
     const maxSize = kind === 'logo' ? 700 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) { notify(kind === 'logo' ? 'La imagen debe pesar máximo 700 KB' : 'El video debe pesar máximo 4 MB'); return null; }
-    const dataUrl = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result || '')); reader.onerror = () => reject(new Error('read')); reader.readAsDataURL(file); });
-    const base64 = dataUrl.split(',')[1] || '';
-    try { const r = await api.post('/api/settings/upload', { password: adminPassword, kind, filename: file.name, contentType: file.type, data: base64 }); notify(kind === 'logo' ? 'Logo cargado correctamente' : file.type.startsWith('video/') ? 'Video de fondo cargado correctamente' : 'Imagen de fondo cargada correctamente'); return { ...(r.data as { path: string; url: string }), contentType: file.type }; } catch { notify(kind === 'logo' ? 'No se pudo cargar el logo.' : 'No se pudo cargar el fondo. Verifica el formato y tamaño.'); return null; }
+    if (file.size > maxSize) { notify(kind === 'logo' ? 'La imagen debe pesar máximo 700 KB' : 'El video debe pesar máximo 10 MB'); return null; }
+    try {
+      const safeName = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
+      const path = `${kind}/${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from('crm-branding').upload(path, file, { contentType: file.type, upsert: true, cacheControl: '3600' });
+      if (uploadError) throw uploadError;
+      const { data: publicData } = supabase.storage.from('crm-branding').getPublicUrl(path);
+      const url = publicData.publicUrl;
+      const r = await api.put('/api/settings', {
+        password: adminPassword,
+        ...(kind === 'logo'
+          ? { logo_url: url, logo_path: path, logo_data: '', logo_content_type: file.type }
+          : file.type.startsWith('video/')
+            ? { background_type: 'video', background_video_url: url, background_video_path: path, background_image_url: url, background_path: path, background_video_data: '', background_content_type: file.type }
+            : { background_type: 'image', background_image_url: url, background_path: path, background_data: '', background_content_type: file.type, background_video_url: '', background_video_path: '' })
+      });
+      if (!r?.data?.ok) throw new Error('No se pudo guardar la configuración');
+      notify(kind === 'logo' ? 'Logo cargado y guardado correctamente' : file.type.startsWith('video/') ? 'Video de fondo cargado y guardado correctamente' : 'Imagen de fondo cargada y guardada correctamente');
+      return { path, url, contentType: file.type };
+    } catch (error) {
+      console.error('Error subiendo recurso de marca:', error);
+      notify(kind === 'logo' ? 'No se pudo cargar el logo.' : 'No se pudo cargar el fondo. Verifica el formato, tamaño o conexión.');
+      return null;
+    }
   }; 
   const changePassword = async (newPassword: string) => {
     if (!admin || newPassword.length < 6)
