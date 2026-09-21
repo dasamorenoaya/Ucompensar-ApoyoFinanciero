@@ -1608,3 +1608,62 @@ body {
 .certificate-editor .document-content .docx .certificate-fixed-area{
   outline:2px solid rgba(255,104,1,.28)!important;
 }
+
+
+/* Vista Word web para plantillas DOCX: papel real, centrado y editable. */
+.certificate-word-web-editor {
+  width: 100%;
+  min-height: 720px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 18px 10px 30px;
+  box-sizing: border-box;
+  background: #e5e8eb;
+  overflow: auto;
+  outline: none;
+}
+.certificate-word-web-editor .docx-wrapper {
+  width: auto !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+}
+.certificate-word-web-editor .docx {
+  width: 210mm !important;
+  min-height: 297mm !important;
+  margin: 0 auto 24px !important;
+  padding: 0 !important;
+  background: #fff !important;
+  color: #111 !important;
+  box-shadow: 0 8px 26px rgba(30,38,45,.20) !important;
+  border: 1px solid #d7dadd !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+.certificate-word-web-editor .docx * { pointer-events: auto; }
+.certificate-word-web-editor:focus { outline: none; }
+.certificate-word-web-editor .certificate-fixed-area {
+  outline: 2px solid rgba(255,104,1,.65) !important;
+  outline-offset: -2px !important;
+  cursor: not-allowed !important;
+}
+.certificate-word-web-editor .certificate-fixed-area::before {
+  content: 'ÁREA INSTITUCIONAL FIJA';
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  z-index: 20;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: rgba(255,104,1,.88);
+  color: #fff;
+  font: 700 8px Arial,sans-serif;
+  letter-spacing: .03em;
+}
+@media (max-width: 900px) {
+  .certificate-word-web-editor .docx { transform-origin: top center; }
+}
