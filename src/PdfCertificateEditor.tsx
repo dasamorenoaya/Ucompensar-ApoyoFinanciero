@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Archive, ChevronLeft, Download, FileText, Loader2, RotateCcw, Save, Trash2, X, ExternalLink } from 'lucide-react';
 import { api } from './lib/api';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { renderAsync } from 'docx-preview';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -46,6 +47,20 @@ const FIELD_LABELS: Record<string, string> = {
 function formatDate(value: unknown) { const numeric = typeof value === 'number' ? value : Number(value); const date = Number.isFinite(numeric) ? new Date(numeric) : null; if (!date || Number.isNaN(date.getTime())) return 'Fecha no disponible'; return new Intl.DateTimeFormat('es-CO', { dateStyle: 'short', timeStyle: 'short' }).format(date); }
 function safeTemplate(template: CertificateTemplate): CertificateTemplate { return { id: String(template?.id || ''), name: String(template?.name || 'Certificado financiero'), description: String(template?.description || ''), filename: String(template?.filename || 'certificado.pdf'), path: String(template?.path || ''), content_type: String(template?.content_type || 'application/pdf'), size: Number(template?.size) || 0, created_at: Number(template?.created_at) || 0, updated_at: Number(template?.updated_at) || undefined }; }
 function safeBackups(backups: CertificateBackup[]) { return (Array.isArray(backups) ? backups : []).filter(item => item && item.template_id); }
+
+const DOCX_RENDER_OPTIONS = { className: 'docx', inWrapper: true, breakPages: true, ignoreLastRenderedPageBreak: false, renderHeaders: true, renderFooters: true, renderFootnotes: true, renderEndnotes: true, useBase64URL: true, experimental: false };
+
+async function renderWordPreview(bytes: ArrayBuffer, host: HTMLElement) {
+  host.innerHTML = '';
+  const styleHost = document.createElement('div');
+  styleHost.style.position = 'absolute'; styleHost.style.width = '0'; styleHost.style.height = '0'; styleHost.style.overflow = 'hidden';
+  document.body.appendChild(styleHost);
+  await renderAsync(bytes, host, styleHost, DOCX_RENDER_OPTIONS);
+  styleHost.querySelectorAll('style').forEach(source => { const style = document.createElement('style'); style.setAttribute('data-crm-certificate-word-style','true'); style.textContent = source.textContent || ''; document.head.appendChild(style); });
+  styleHost.remove();
+  host.querySelectorAll<HTMLElement>('.docx').forEach(page => { page.style.setProperty('display','block','important'); page.style.setProperty('visibility','visible','important'); page.style.setProperty('opacity','1','important'); page.style.setProperty('background','#fff','important'); page.style.setProperty('background-color','#fff','important'); });
+}
+
 async function fetchArrayBuffer(url: string) { if (url.startsWith('/api/')) { const result = await api.get(url); const encoded = result?.data?.data; if (!encoded) throw new Error('pdf-missing-data'); const binary = atob(encoded); return Uint8Array.from(binary, char => char.charCodeAt(0)).buffer; } const response = await fetch(url, { cache: 'no-store' }); if (!response.ok) throw new Error(`pdf-fetch-${response.status}`); return await response.arrayBuffer(); }
 
 function PdfPage({ canvasRef, fields, values, onChange, onFocus }: {
@@ -84,6 +99,8 @@ export default function PdfCertificateEditor({ template: rawTemplate, templates:
   const [activeEditor, setActiveEditor] = useState<HTMLDivElement | null>(null);
   const pageRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const wordRef = useRef<HTMLDivElement | null>(null);
+  const [isWordTemplate, setIsWordTemplate] = useState(false);
   const isNormal = template.name.toLowerCase().includes('normal');
   const fieldDefs = isNormal ? NORMAL_FIELDS : [];
   const fieldEntries = Object.entries(fields);
@@ -97,6 +114,17 @@ export default function PdfCertificateEditor({ template: rawTemplate, templates:
         const url = sourceUrl || (isNormal ? NORMAL_REFERENCE_PDF : `/api/certificados/plantillas/${encodeURIComponent(template.id)}/file`);
         const bytes = await fetchArrayBuffer(url);
         if (cancelled) return;
+        const signature = new Uint8Array(bytes.slice(0, 4));
+        const isZipPackage = signature[0] === 0x50 && signature[1] === 0x4b;
+        if (isZipPackage) {
+          if (!wordRef.current) throw new Error('word-host-missing');
+          await renderWordPreview(bytes, wordRef.current);
+          wordRef.current.contentEditable = 'true';
+          wordRef.current.spellcheck = false;
+          setIsWordTemplate(true);
+          return;
+        }
+        setIsWordTemplate(false);
         const pdf = await getDocument({ data: new Uint8Array(bytes), disableWorker: true }).promise;
         if (cancelled || pdf.numPages < 1) return;
         const page = await pdf.getPage(1);
@@ -159,7 +187,7 @@ export default function PdfCertificateEditor({ template: rawTemplate, templates:
         <div className='wysiwyg-tools pdf-wysiwyg-tools' aria-label='Herramientas de edición'><button type='button' title='Deshacer' onMouseDown={e => e.preventDefault()} onClick={() => runCommand('undo')}>↶</button><button type='button' title='Rehacer' onMouseDown={e => e.preventDefault()} onClick={() => runCommand('redo')}>↷</button><span className='wysiwyg-divider' /><button type='button' title='Negrilla' onMouseDown={e => e.preventDefault()} onClick={() => runCommand('bold')}><b>B</b></button><button type='button' title='Cursiva' onMouseDown={e => e.preventDefault()} onClick={() => runCommand('italic')}><i>I</i></button><button type='button' title='Subrayado' onMouseDown={e => e.preventDefault()} onClick={() => runCommand('underline')}><u>U</u></button><span className='wysiwyg-divider' /><select title='Tipo de fuente' defaultValue='Arial' onChange={e => runCommand('fontName', e.target.value)}><option>Arial</option><option>Calibri</option><option>Times New Roman</option><option>Verdana</option></select><select title='Tamaño de letra' defaultValue='3' onChange={e => runCommand('fontSize', e.target.value)}><option value='1'>10</option><option value='2'>11</option><option value='3'>12</option><option value='4'>14</option><option value='5'>18</option><option value='6'>24</option></select><button type='button' title='Alinear izquierda' onMouseDown={e => e.preventDefault()} onClick={() => runCommand('justifyLeft')}>≡</button><button type='button' title='Centrar' onMouseDown={e => e.preventDefault()} onClick={() => runCommand('justifyCenter')}>≡</button><button type='button' title='Alinear derecha' onMouseDown={e => e.preventDefault()} onClick={() => runCommand('justifyRight')}>≡</button><span className='wysiwyg-divider' /><span className='wysiwyg-zoom-label'>Zoom</span><select title='Zoom' value={zoom} onChange={e => setZoom(Number(e.target.value))}><option value={70}>70%</option><option value={82}>82%</option><option value={92}>92%</option><option value={100}>100%</option></select></div>
         {fieldDefs.map(field => <label key={field.key}><span>{FIELD_LABELS[field.key] || field.key}</span><input value={fields[field.key] || ''} onChange={event => setFieldFromPanel(field.key, event.target.value)} placeholder='Editar campo' /></label>)}
       </aside>
-      <section className='certificate-preview-area'><div className='preview-label'><span>PLANTILLA ORIGINAL · EDICIÓN DIRECTA</span><small>Diseño institucional intacto · copia temporal</small></div><div className='document-stage pdf-document-stage'><div ref={pageRef} className='pdf-page-stack' style={{ width: `${zoom}%` }}><PdfPage canvasRef={node => { canvasRef.current = node; }} pageNumber={1} fields={fieldDefs} values={fields} onChange={updateField} onFocus={setActiveEditor} /></div></div></section>
+      <section className='certificate-preview-area'><div className='preview-label'><span>PLANTILLA ORIGINAL · EDICIÓN DIRECTA</span><small>Diseño institucional intacto · copia temporal</small></div><div className='document-stage pdf-document-stage'>{isWordTemplate ? <div ref={wordRef} className='certificate-word-web-editor' /> : <div ref={pageRef} className='pdf-page-stack' style={{ width: `${zoom}%` }}><PdfPage canvasRef={node => { canvasRef.current = node; }} pageNumber={1} fields={fieldDefs} values={fields} onChange={updateField} onFocus={setActiveEditor} /></div>}</div></section>
       {showBackups && <aside className='certificate-backups'><div className='certificate-backups-head'><div><b>Respaldos de certificados</b><span>{templateBackups.length} guardados</span></div><button className='icon-btn-small' title='Ocultar respaldos' onClick={() => setShowBackups(false)}><X size={14} /></button></div><p className='backup-helper'>Cada PDF o Word generado guarda una copia para poder reutilizarla.</p>{templateBackups.length ? <div className='backup-list'>{templateBackups.map((backup, index) => { const safe = backup.fields && typeof backup.fields === 'object' ? backup.fields : {}; const backupKey = String(backup.id || `${template.id}-${backup.created_at || index}`); return <article className='backup-card' key={backupKey}><div className='backup-card-top'><FileText size={16} /><span>{formatDate(backup.created_at)}</span></div><b>{Object.values(safe).filter(value => typeof value === 'string' && value.trim()).slice(0, 2).join(' · ') || 'Certificado guardado'}</b><small>{Object.keys(safe).length} campos · {String(backup.filename || 'respaldo')}</small><div className='backup-actions'><button onClick={() => restoreBackup(backup)}><ExternalLink size={13} /> Utilizar nuevamente</button>{adminPassword && <button title='Eliminar respaldo' onClick={() => void deleteBackup(backup)}><Trash2 size={13} /></button>}</div></article>; })}</div> : <div className='backup-empty'><Archive size={22} /><b>Aún no hay respaldos</b><span>Cuando generes un PDF o Word aparecerán aquí.</span></div>}</aside>}
     </div>
     {!showBackups && <button className='show-backups' onClick={() => setShowBackups(true)}><Archive size={14} /> Mostrar respaldos</button>}
