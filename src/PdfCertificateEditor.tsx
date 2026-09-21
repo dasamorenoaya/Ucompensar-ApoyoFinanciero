@@ -100,6 +100,7 @@ export default function PdfCertificateEditor({ template: rawTemplate, templates:
   const pageRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wordRef = useRef<HTMLDivElement | null>(null);
+  const sourceBytesRef = useRef<ArrayBuffer | null>(null);
   const [isWordTemplate, setIsWordTemplate] = useState(false);
   const isNormal = template.name.toLowerCase().includes('normal');
   const fieldDefs = isNormal ? NORMAL_FIELDS : [];
@@ -113,6 +114,7 @@ export default function PdfCertificateEditor({ template: rawTemplate, templates:
       try {
         const url = sourceUrl || (isNormal ? NORMAL_REFERENCE_PDF : `/api/certificados/plantillas/${encodeURIComponent(template.id)}/file`);
         const bytes = await fetchArrayBuffer(url);
+        sourceBytesRef.current = bytes;
         if (cancelled) return;
         const signature = new Uint8Array(bytes.slice(0, 4));
         const isZipPackage = signature[0] === 0x50 && signature[1] === 0x4b;
@@ -145,30 +147,59 @@ export default function PdfCertificateEditor({ template: rawTemplate, templates:
   const runCommand = (command: string, value?: string) => { activeEditor?.focus(); document.execCommand(command, false, value); };
   const updateField = (key: string, value: string) => setFields(current => ({ ...current, [key]: value }));
   const setFieldFromPanel = (key: string, value: string) => { updateField(key, value); const node = pageRef.current?.querySelector<HTMLElement>(`[data-field-key="${CSS.escape(key)}"]`); if (node && node.textContent !== value) node.textContent = value; };
-  const clearCertificate = () => { if (hasData && !window.confirm('¿Deseas limpiar los datos ingresados?')) return; setFields({}); pageRef.current?.querySelectorAll<HTMLElement>('[data-field-key]').forEach(node => { node.textContent = ''; }); setMessage('Certificado limpio. La plantilla original permanece intacta.'); };
+  const clearCertificate = async () => {
+    if (hasData && !window.confirm('¿Deseas limpiar los datos ingresados?')) return;
+    setFields({});
+    if (isWordTemplate && wordRef.current && sourceBytesRef.current) await renderWordPreview(sourceBytesRef.current, wordRef.current);
+    pageRef.current?.querySelectorAll<HTMLElement>('[data-field-key]').forEach(node => { node.textContent = ''; });
+    setMessage('Certificado limpio. La plantilla original permanece intacta.');
+  };
 
   const saveBackup = async () => {
     if (!adminPassword || !hasData) { setMessage('Diligencia al menos un dato antes de guardar un respaldo.'); return false; }
     setSavingBackup(true);
-    try { await api.post('/api/certificados/respaldos', { password: adminPassword, template_id: template.id, template_name: template.name, filename: `${template.name}_certificado`, fields, html: pageRef.current?.outerHTML || '' }); await onChanged(); return true; }
-    catch (error) { console.error('PDF certificate backup error', error); setMessage('No se pudo guardar el respaldo.'); return false; }
+    try {
+      await api.post('/api/certificados/respaldos', { password: adminPassword, template_id: template.id, template_name: template.name, filename: template.name + '_certificado', fields, html: isWordTemplate ? (wordRef.current?.innerHTML || '') : (pageRef.current?.outerHTML || '') });
+      await onChanged(); return true;
+    } catch (error) { console.error('PDF certificate backup error', error); setMessage('No se pudo guardar el respaldo.'); return false; }
     finally { setSavingBackup(false); }
   };
 
   const generatePdf = async () => {
-    if (!pageRef.current || !hasData) { setMessage('Diligencia los campos antes de generar el PDF.'); return; }
+    const target = isWordTemplate ? wordRef.current : pageRef.current;
+    if (!target || !hasData) { setMessage('Diligencia los campos antes de generar el PDF.'); return; }
     setMessage('Generando PDF…'); if (!await saveBackup()) return;
-    try { const canvas = await html2canvas(pageRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false }); const pdf = new jsPDF('p', 'mm', 'letter'); pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 215.9, 279.4); pdf.save(`${template.name.replace(/[^a-zA-Z0-9_-]+/g, '_')}_certificado.pdf`); clearCertificate(); await onChanged(); setMessage('PDF generado. El certificado quedó limpio para el siguiente estudiante.'); }
-    catch (error) { console.error('PDF certificate generation error', error); setMessage('No fue posible generar el PDF. El respaldo quedó guardado.'); }
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      if (isWordTemplate) {
+        const pages = Array.from(target.querySelectorAll<HTMLElement>('.docx'));
+        if (!pages.length) throw new Error('no-word-pages');
+        for (let index = 0; index < pages.length; index += 1) {
+          const canvas = await html2canvas(pages[index], { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
+          const width = 190;
+          const height = canvas.height * width / canvas.width;
+          if (index > 0) pdf.addPage();
+          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, width, Math.min(height, 277));
+        }
+      } else {
+        const canvas = await html2canvas(target, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+      }
+      pdf.save(template.name.replace(/[^a-zA-Z0-9_-]+/g, '_') + '_certificado.pdf');
+      await clearCertificate();
+      await onChanged();
+      setMessage('PDF generado. El certificado quedó limpio para el siguiente estudiante.');
+    } catch (error) { console.error('PDF certificate generation error', error); setMessage('No fue posible generar el PDF. El respaldo quedó guardado.'); }
   };
 
   const downloadWord = async () => {
-    if (!pageRef.current || !hasData) { setMessage('Diligencia los datos antes de descargar el Word.'); return; }
+    const target = isWordTemplate ? wordRef.current : pageRef.current;
+    if (!target || !hasData) { setMessage('Diligencia los datos antes de descargar el Word.'); return; }
     if (!await saveBackup()) return;
-    const imageCanvas = await html2canvas(pageRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
+    const imageCanvas = await html2canvas(target, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
     const image = imageCanvas.toDataURL('image/png');
-    const html = `<!DOCTYPE html><html><head><meta charset='utf-8'><style>@page{size:Letter;margin:0}html,body{margin:0;padding:0}img{width:8.5in;height:11in;display:block}</style></head><body><img src='${image}' alt='Certificado financiero'/></body></html>`;
-    const blob = new Blob([html], { type: 'application/msword' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${template.name.replace(/[^a-zA-Z0-9_-]+/g, '_')}_respaldo.doc`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url); setMessage('Respaldo Word descargado y guardado.');
+    const html = "<!DOCTYPE html><html><head><meta charset='utf-8'><style>@page{size:A4;margin:0}html,body{margin:0;padding:0}img{width:210mm;display:block}</style></head><body><img src='" + image + "' alt='Certificado financiero'/></body></html>";
+    const blob = new Blob([html], { type: 'application/msword' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = template.name.replace(/[^a-zA-Z0-9_-]+/g, '_') + '_respaldo.doc'; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url); setMessage('Respaldo Word descargado y guardado.');
   };
 
   const restoreBackup = (backup: CertificateBackup) => { const next = backup.fields && typeof backup.fields === 'object' ? backup.fields : {}; setFields(Object.fromEntries(Object.entries(next).map(([key, value]) => [key, String(value ?? '')]))); window.requestAnimationFrame(() => pageRef.current?.querySelectorAll<HTMLElement>('[data-field-key]').forEach(node => { const key = node.dataset.fieldKey || ''; node.textContent = String(next[key] ?? ''); })); setMessage(`Respaldo del ${formatDate(backup.created_at)} cargado nuevamente.`); };
