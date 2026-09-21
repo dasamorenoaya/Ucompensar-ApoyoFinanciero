@@ -100,6 +100,7 @@ const DOCX_RENDER_OPTIONS = {
 };
 
 function clearCertificateDocxStyles() {
+  document.querySelectorAll('style[data-crm-certificate-docx]').forEach(node => node.remove());
   document.querySelectorAll('[data-crm-certificate-docx-style-host]').forEach(node => node.remove());
 }
 
@@ -107,9 +108,23 @@ function createCertificateDocxStyleHost() {
   const styleHost = document.createElement('div');
   styleHost.setAttribute('data-crm-certificate-docx-style-host', 'true');
   styleHost.setAttribute('aria-hidden', 'true');
-  styleHost.style.display = 'none';
+  styleHost.style.position = 'absolute';
+  styleHost.style.width = '0';
+  styleHost.style.height = '0';
+  styleHost.style.overflow = 'hidden';
+  styleHost.style.pointerEvents = 'none';
   document.body.appendChild(styleHost);
   return styleHost;
+}
+
+function promoteCertificateDocxStyles(styleHost: HTMLElement) {
+  styleHost.querySelectorAll('style').forEach(source => {
+    const style = document.createElement('style');
+    style.setAttribute('data-crm-certificate-docx', 'true');
+    style.textContent = source.textContent || '';
+    document.head.appendChild(style);
+  });
+  styleHost.remove();
 }
 
 async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) {
@@ -129,21 +144,26 @@ async function renderCertificateDocument(bytes: ArrayBuffer, host: HTMLElement) 
     // globales de toda la aplicación. Un contenedor aislado mantiene intacto
     // el CSS del CRM y permite que los estilos DOCX sigan aplicándose.
     await renderAsync(bytes, host, styleHost, DOCX_RENDER_OPTIONS);
-    styleHost.querySelectorAll('style').forEach(style => {
-      style.setAttribute('data-crm-certificate-docx', 'true');
-    });
+    promoteCertificateDocxStyles(styleHost);
     const pages = Array.from(host.querySelectorAll<HTMLElement>('.docx'));
     // La hoja del certificado es papel blanco real. Forzamos el fondo en línea
     // porque docx-preview puede insertar después sus propios estilos de página.
     pages.forEach(page => {
       // El DOCX es la fuente visual. No se deben borrar fondos, imágenes,
       // bordes ni elementos internos: algunos membretes dependen de ellos.
-      page.style.setProperty('background', '#FFFFFF', 'important');
-      page.style.setProperty('background-color', '#FFFFFF', 'important');
+      page.style.setProperty('display', 'block', 'important');
+      page.style.setProperty('visibility', 'visible', 'important');
       page.style.setProperty('opacity', '1', 'important');
       page.style.setProperty('filter', 'none', 'important');
       page.style.setProperty('mix-blend-mode', 'normal', 'important');
-      page.style.setProperty('visibility', 'visible', 'important');
+      page.style.setProperty('background', '#FFFFFF', 'important');
+      page.style.setProperty('background-color', '#FFFFFF', 'important');
+      const wrapper = page.parentElement;
+      if (wrapper) {
+        wrapper.style.setProperty('display', 'block', 'important');
+        wrapper.style.setProperty('visibility', 'visible', 'important');
+        wrapper.style.setProperty('opacity', '1', 'important');
+      }
     });
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     rendered = pages.length > 0 && pages.some(page => {
