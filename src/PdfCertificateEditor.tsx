@@ -105,7 +105,7 @@ export default function PdfCertificateEditor({ template: rawTemplate, templates:
   const isNormal = template.name.toLowerCase().includes('normal');
   const fieldDefs = isNormal ? NORMAL_FIELDS : [];
   const fieldEntries = Object.entries(fields);
-  const hasData = fieldEntries.some(([, value]) => value.trim().length > 0);
+  const hasData = isWordTemplate ? Boolean(wordRef.current?.textContent?.trim()) : fieldEntries.some(([, value]) => value.trim().length > 0);
 
   useEffect(() => {
     let cancelled = false;
