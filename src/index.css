@@ -1494,3 +1494,31 @@ body {
 .certificate-fixed-notice{display:flex;flex-direction:column;gap:3px;margin:10px 0 14px;padding:10px 12px;border:1px solid #ffd4b5;border-radius:10px;background:#fff8f3;color:#5f3b28;font-size:12px;line-height:1.35;}
 .certificate-fixed-notice b{color:#b84d08;font-size:12px;}
 .certificate-fixed-notice span{color:#6f625b;}
+
+
+/* Superficie del certificado: hoja blanca real sobre área de trabajo gris.
+   El gris queda SOLO fuera de la hoja; nunca sobre el documento. */
+.certificate-editor .document-stage{
+  background:#DDE2E6!important;
+}
+.certificate-editor .document-content{
+  background:transparent!important;
+}
+.certificate-editor .document-content .docx-wrapper{
+  background:transparent!important;
+  padding:18px 18px 30px!important;
+}
+.certificate-editor .document-content .docx{
+  background:#FFFFFF!important;
+  background-color:#FFFFFF!important;
+  color:#202020!important;
+  opacity:1!important;
+  filter:none!important;
+  mix-blend-mode:normal!important;
+}
+.certificate-editor .document-content .docx *,
+.certificate-editor .document-content .docx p,
+.certificate-editor .document-content .docx td,
+.certificate-editor .document-content .docx th{
+  opacity:1;
+}
