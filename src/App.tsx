@@ -266,8 +266,21 @@ function App() {
     }
   };
   const saveSettings = async (s: SettingsData) => {
-    if (!admin) return;
-      try { await api.put('/api/settings', { ...s, password: adminPassword }); await load(); setModal(null); notify('Configuración actualizada'); } catch { notify('No se pudo actualizar la configuración'); }
+    if (!admin || !adminPassword) {
+      notify('Debes estar en modo administrador para guardar los cambios');
+      return;
+    }
+    try {
+      const result = await api.put('/api/settings', { ...s, password: adminPassword });
+      if (!result?.data?.ok) throw new Error('No se confirmó el guardado');
+      setSettings(s);
+      setModal(null);
+      notify('Configuración guardada correctamente');
+      void load();
+    } catch (error) {
+      console.error('Error guardando configuración:', error);
+      notify('No se pudieron guardar los cambios. Verifica el acceso de administrador.');
+    }
   };
   const uploadBrandAsset = async (file: File, kind: 'logo' | 'background') => {
     if (!admin || !adminPassword) return null;
@@ -815,6 +828,7 @@ function SettingsModal({
 }) {
   const [s, setS] = useState(settings);
   const [errorText, setErrorText] = useState('');
+  const [saving, setSaving] = useState(false);
   const chooseAsset = async (file: File, kind: 'logo' | 'background') => {
     setErrorText('');
     const result = await onUpload(file, kind);
@@ -887,7 +901,7 @@ function SettingsModal({
       </section>
       <section className="settings-section"><div className="section-title"><span>Seguridad y respaldos</span><small>Solo administrador</small></div><div className="settings-grid"><button className="secondary" onClick={onPassword}><Lock size={16} /> Cambiar contraseña</button><button className="secondary" onClick={() => void onExport()}><Download size={16} /> Exportar respaldo</button><label className="secondary file-btn"><Upload size={16} /> Importar respaldo<input type="file" accept="application/json" onChange={e => { const f = e.target.files?.[0]; if (f) void onImport(f); }} /></label></div></section>
       {errorText && <div className="form-error">{errorText}</div>}
-      <div className="modal-footer"><button className="ghost" onClick={onClose}>Cerrar</button><button className="primary" onClick={() => void onSave(s)}><Check size={16} /> Guardar cambios</button></div>
+      <div className="modal-footer"><button type="button" className="ghost" disabled={saving} onClick={onClose}>Cerrar</button><button type="button" className="primary" disabled={saving} onClick={async () => { setSaving(true); setErrorText(''); try { await onSave(s); } catch { setErrorText('No se pudieron guardar los cambios.'); } finally { setSaving(false); } }}>{saving ? 'Guardando…' : <><Check size={16} /> Guardar cambios</>}</button></div>
     </div></div>
   );
 }
