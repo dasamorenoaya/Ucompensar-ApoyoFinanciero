@@ -48,6 +48,28 @@ function safeTemplate(template: CertificateTemplate): CertificateTemplate { retu
 function safeBackups(backups: CertificateBackup[]) { return (Array.isArray(backups) ? backups : []).filter(item => item && item.template_id); }
 async function fetchArrayBuffer(url: string) { if (url.startsWith('/api/')) { const result = await api.get(url); const encoded = result?.data?.data; if (!encoded) throw new Error('pdf-missing-data'); const binary = atob(encoded); return Uint8Array.from(binary, char => char.charCodeAt(0)).buffer; } const response = await fetch(url, { cache: 'no-store' }); if (!response.ok) throw new Error(`pdf-fetch-${response.status}`); return await response.arrayBuffer(); }
 
+function PdfPage({ canvasRef, fields, values, onChange, onFocus }: {
+  canvasRef: (node: HTMLCanvasElement | null) => void;
+  pageNumber: number;
+  fields: PdfField[];
+  values: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+  onFocus: (node: HTMLDivElement | null) => void;
+}) {
+  return <div className='pdf-edit-page' style={{ position: 'relative', width: '612px', aspectRatio: '612 / 792', background: '#fff', overflow: 'hidden' }}>
+    <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />
+    {fields.map(field => <div key={field.key} style={{ position: 'absolute', left: `${(field.x / PAGE_WIDTH) * 100}%`, top: `${(field.top / PAGE_HEIGHT) * 100}%`, width: `${(field.width / PAGE_WIDTH) * 100}%`, minHeight: `${(field.height / PAGE_HEIGHT) * 100}%`, display: 'flex', alignItems: 'center' }}>
+      <input
+        value={values[field.key] || ''}
+        onChange={event => onChange(field.key, event.target.value)}
+        onFocus={event => onFocus(event.currentTarget.parentElement)}
+        aria-label={FIELD_LABELS[field.key] || field.key}
+        style={{ width: '100%', height: '100%', border: '1px dashed rgba(255,104,1,.65)', background: 'rgba(255,249,242,.82)', color: '#171717', fontSize: `${Math.max(8, field.fontSize)}px`, fontWeight: field.bold ? 700 : 400, textAlign: field.align || 'left', padding: '1px 3px', outline: 'none', boxSizing: 'border-box' }}
+      />
+    </div>)}
+  </div>;
+}
+
 export default function PdfCertificateEditor({ template: rawTemplate, templates: rawTemplates, backups: rawBackups, adminPassword, onBack, onChanged, sourceUrl }: Props) {
   const template = useMemo(() => safeTemplate(rawTemplate), [rawTemplate]);
   const templates = useMemo(() => (Array.isArray(rawTemplates) ? rawTemplates.map(safeTemplate).filter(item => item.id) : []), [rawTemplates]);
