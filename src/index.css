@@ -1522,3 +1522,48 @@ body {
 .certificate-editor .document-content .docx th{
   opacity:1;
 }
+
+
+/* Hoja del certificado: presentación tipo Word/PDF */
+.certificate-editor .document-stage{
+  background:#dfe3e6!important;
+  padding:24px!important;
+  border:1px solid #cfd5d9!important;
+}
+.certificate-editor .document-content{
+  background:transparent!important;
+}
+.certificate-editor .document-content .docx-wrapper{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  width:100%!important;
+  padding:0!important;
+  margin:0!important;
+  background:transparent!important;
+}
+.certificate-editor .document-content .docx{
+  flex:0 0 auto!important;
+  width:210mm!important;
+  min-height:297mm!important;
+  margin:0 auto 24px!important;
+  padding:0!important;
+  background:#fff!important;
+  background-color:#fff!important;
+  color:#202020!important;
+  opacity:1!important;
+  filter:none!important;
+  mix-blend-mode:normal!important;
+  box-shadow:0 3px 14px rgba(0,0,0,.22)!important;
+  border:1px solid #cfd2d4!important;
+}
+.certificate-editor .document-content .docx > *{
+  opacity:1!important;
+}
+@media(max-width:760px){
+  .certificate-editor .document-stage{padding:10px!important;}
+  .certificate-editor .document-content .docx{
+    width:210mm!important;
+    min-height:297mm!important;
+  }
+}
