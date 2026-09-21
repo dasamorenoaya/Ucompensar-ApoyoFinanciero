@@ -1524,6 +1524,30 @@ body {
 }
 
 
+/* Fallback real para DOCX que no puede ser pintado por docx-preview.
+   Nunca deja el área del certificado como un bloque gris vacío. */
+.certificate-editor .docx-fallback-page{
+  box-sizing:border-box;
+  width:210mm;
+  min-height:297mm;
+  margin:0 auto 24px!important;
+  padding:0!important;
+  background:#fff!important;
+  color:#202020!important;
+  opacity:1!important;
+  visibility:visible!important;
+  box-shadow:0 3px 14px rgba(0,0,0,.22)!important;
+  border:1px solid #d7dadd!important;
+  overflow:hidden;
+}
+.certificate-editor .docx-fallback-page img{
+  max-width:100%;
+  height:auto;
+}
+.certificate-editor .docx-fallback-page table{
+  max-width:100%;
+}
+
 /* Hoja del certificado: presentación tipo Word/PDF */
 .certificate-editor .document-stage{
   background:#dfe3e6!important;
