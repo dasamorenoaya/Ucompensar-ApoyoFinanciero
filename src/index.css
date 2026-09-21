@@ -1567,3 +1567,20 @@ body {
     min-height:297mm!important;
   }
 }
+
+
+/* El marco institucional rojo pertenece SOLO al encabezado y pie.
+   Nunca debe envolver la hoja completa. */
+.certificate-editor .document-content,
+.certificate-editor .document-content .docx-wrapper,
+.certificate-editor .document-content .docx{
+  outline:none!important;
+  outline-offset:0!important;
+  border-radius:0!important;
+}
+.certificate-editor .document-content .docx{
+  border:1px solid #d7dadd!important;
+}
+.certificate-editor .document-content .docx .certificate-fixed-area{
+  outline:2px solid rgba(255,104,1,.28)!important;
+}
